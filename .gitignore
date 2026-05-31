@@ -1,0 +1,16 @@
+build/
+*.user
+*.pro.user
+*.o
+*.obj
+moc_*
+ui_*
+qrc_*
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.exe
+*.app
+.vscode/
+*.autosave
