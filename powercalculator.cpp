@@ -26,3 +26,40 @@ PowerResult PowerCalculator::calculate() const
 
     return result;
 }
+
+THDResult PowerCalculator::calculateTHD(const std::vector<double> &harmonics)
+{
+    THDResult result;
+    if (harmonics.empty()) return result;
+
+    double fundamental = harmonics[0];  // 基波幅值
+    if (fundamental == 0.0) return result;
+
+    double sumSquares = 0.0;
+    for (size_t i = 1; i < harmonics.size(); ++i) {
+        sumSquares += harmonics[i] * harmonics[i];
+    }
+
+    double thd = (std::sqrt(sumSquares) / fundamental) * 100.0;
+    result.thdU = thd;
+    result.thdI = thd;
+    result.passed = isTHDPass(result.thdU, result.thdI);
+
+    return result;
+}
+
+bool PowerCalculator::isTHDPass(double thdU, double thdI, double voltageLevel)
+{
+    // GB/T 14549-93 谐波电压限值
+    double thdULimit = 5.0;  // 380V及以下：THDu ≤ 5%
+    if (voltageLevel > 380 && voltageLevel <= 1000) {
+        thdULimit = 4.0;
+    } else if (voltageLevel > 1000) {
+        thdULimit = 3.0;
+    }
+
+    // 电流谐波限值（简化：参考IEC 61000-3-2，一般≤20%）
+    double thdILimit = 20.0;
+
+    return (thdU <= thdULimit) && (thdI <= thdILimit);
+}
