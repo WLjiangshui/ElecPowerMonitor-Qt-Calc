@@ -37,6 +37,11 @@ void MainWindow::setupUI()
     setupTHDTab(thdTab);
     tabWidget_->addTab(thdTab, "🔧 谐波分析 (THD)");
 
+    // 电费估算 & 负载评估选项卡
+    auto *costTab = new QWidget(this);
+    setupCostTab(costTab);
+    tabWidget_->addTab(costTab, "💰 电费 & 负载率");
+
     mainLayout->addWidget(tabWidget_);
 }
 
@@ -155,6 +160,50 @@ void MainWindow::setupTHDTab(QWidget *tab)
     mainLayout->addStretch();
 }
 
+void MainWindow::setupCostTab(QWidget *tab)
+{
+    auto *mainLayout = new QVBoxLayout(tab);
+    mainLayout->setSpacing(12);
+    mainLayout->setContentsMargins(16, 16, 16, 16);
+
+    // ---- 输入参数 ----
+    auto *inputGroup = new QGroupBox("用电参数", tab);
+    auto *inputLayout = new QFormLayout(inputGroup);
+
+    editLoadPowerKw_ = new QLineEdit(tab);
+    editLoadPowerKw_->setPlaceholderText("如 5.5");
+    editRatedPowerKw_ = new QLineEdit(tab);
+    editRatedPowerKw_->setPlaceholderText("如 10");
+    editHoursPerDay_ = new QLineEdit(tab);
+    editHoursPerDay_->setPlaceholderText("默认24小时");
+    editHoursPerDay_->setText("24");
+
+    inputLayout->addRow("有功功率 (kW)：", editLoadPowerKw_);
+    inputLayout->addRow("设备额定功率 (kW)：", editRatedPowerKw_);
+    inputLayout->addRow("日运行小时数：", editHoursPerDay_);
+
+    mainLayout->addWidget(inputGroup);
+
+    // ---- 按钮 ----
+    auto *btnLayout = new QHBoxLayout();
+    auto *btnCalcCost = new QPushButton("计算电费 & 负载率", tab);
+    btnCalcCost->setMinimumHeight(36);
+    btnLayout->addWidget(btnCalcCost);
+    btnLayout->addStretch();
+    mainLayout->addLayout(btnLayout);
+
+    connect(btnCalcCost, &QPushButton::clicked, this, &MainWindow::onCalcCost);
+
+    // ---- 结果 ----
+    auto *resultGroup = new QGroupBox("电费 & 负载率结果", tab);
+    auto *resultLayout = new QVBoxLayout(resultGroup);
+    textCostResult_ = new QTextEdit(tab);
+    textCostResult_->setReadOnly(true);
+    textCostResult_->setMinimumHeight(200);
+    resultLayout->addWidget(textCostResult_);
+    mainLayout->addWidget(resultGroup);
+}
+
 void MainWindow::onCalculate()
 {
     bool okV, okI, okPF;
@@ -264,6 +313,50 @@ void MainWindow::onCalcTHD()
         labelTHDStatus_->setText("❌ 不合格 - 超出谐波限值，需加装滤波器");
         labelTHDStatus_->setStyleSheet("font-weight: bold; font-size: 14px; color: red;");
     }
+}
+
+void MainWindow::onCalcCost()
+{
+    bool okP, okR, okH;
+    double powerKw = editLoadPowerKw_->text().toDouble(&okP);
+    double ratedKw = editRatedPowerKw_->text().toDouble(&okR);
+    double hours = editHoursPerDay_->text().toDouble(&okH);
+
+    if (!okP || !okR) {
+        textCostResult_->setHtml("<b style='color:red;'>错误：请输入有效的功率数值。</b>");
+        return;
+    }
+
+    if (!okH || hours <= 0) {
+        hours = 24.0;
+    }
+
+    CostResult cost = PowerCalculator::calculateCost(powerKw, hours);
+    QString loadEval = PowerCalculator::evaluateLoadRate(powerKw, ratedKw);
+
+    QString html;
+    html += "<h3>电费估算结果</h3>";
+    html += QString("<table border='0' cellspacing='4'>");
+    html += QString("<tr><td><b>设备有功功率：</b></td><td>%1 kW</td></tr>").arg(powerKw, 0, 'f', 2);
+    html += QString("<tr><td><b>日运行小时数：</b></td><td>%1 h</td></tr>").arg(hours, 0, 'f', 1);
+    html += QString("<tr><td><b>日用电量：</b></td><td>%1 kWh</td></tr>").arg(cost.dailyKWh, 0, 'f', 2);
+    html += QString("<tr><td><b>月用电量（30天）：</b></td><td>%1 kWh</td></tr>").arg(cost.monthlyKWh, 0, 'f', 2);
+    html += "<tr><td colspan='2'><hr></td></tr>";
+
+    QString tierLabel;
+    if (cost.tier == 1) tierLabel = "<span style='color:green;'>第一档（≤210 kWh）</span>";
+    else if (cost.tier == 2) tierLabel = "<span style='color:orange;'>第二档（210~400 kWh）</span>";
+    else tierLabel = "<span style='color:red;'>第三档（>400 kWh）</span>";
+
+    html += QString("<tr><td><b>阶梯档位：</b></td><td>%1</td></tr>").arg(tierLabel);
+    html += QString("<tr><td><b>日预估电费：</b></td><td>%1 元</td></tr>").arg(cost.dailyCost, 0, 'f', 2);
+    html += QString("<tr><td><b>月预估电费：</b></td><td>%1 元</td></tr>").arg(cost.monthlyCost, 0, 'f', 2);
+    html += "</table>";
+
+    html += "<br><h3>负载率评估</h3>";
+    html += QString("<p>%1</p>").arg(loadEval);
+
+    textCostResult_->setHtml(html);
 }
 
 void MainWindow::onConnectionChanged(int index)

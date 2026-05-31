@@ -23,12 +23,14 @@ private slots:
     void onCalculate();
     void onClear();
     void onCalcTHD();
+    void onCalcCost();
     void onConnectionChanged(int index);
 
 private:
     void setupUI();
     void setupPowerTab(QWidget *tab);
     void setupTHDTab(QWidget *tab);
+    void setupCostTab(QWidget *tab);
 
     // ---- 功率计算页 ----
     QComboBox *comboConnection_;
@@ -42,6 +44,12 @@ private:
     QTableWidget *tableHarmonics_;
     QLineEdit *editTHDUResult_;
     QLabel *labelTHDStatus_;
+
+    // ---- 电费估算 & 负载评估页 ----
+    QLineEdit *editLoadPowerKw_;
+    QLineEdit *editRatedPowerKw_;
+    QLineEdit *editHoursPerDay_;
+    QTextEdit *textCostResult_;
 
     QTabWidget *tabWidget_;
 };

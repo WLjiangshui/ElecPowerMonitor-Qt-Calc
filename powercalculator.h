@@ -16,6 +16,14 @@ struct THDResult {
     bool passed = false;   // 是否满足国标限值
 };
 
+struct CostResult {
+    double dailyKWh = 0.0;      // 日用电量 (kWh)
+    double monthlyKWh = 0.0;    // 月用电量 (kWh)
+    double dailyCost = 0.0;     // 日电费 (元)
+    double monthlyCost = 0.0;   // 月电费 (元)
+    int tier = 0;               // 所处阶梯档位
+};
+
 class PowerCalculator
 {
 public:
@@ -38,6 +46,11 @@ public:
     static THDResult calculateTHD(const std::vector<double> &harmonics);
     // 根据国标GB/T 14549判断THD是否合格
     static bool isTHDPass(double thdU, double thdI, double voltageLevel = 380);
+
+    // 电费计算：三级阶梯电价（居民用电标准）
+    static CostResult calculateCost(double powerKW, double hoursPerDay = 24.0);
+    // 评估负载率
+    static QString evaluateLoadRate(double actualKw, double ratedKw);
 
 private:
     ConnectionType connType_;
